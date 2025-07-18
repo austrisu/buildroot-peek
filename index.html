@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buildroot Config Search</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .search-container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .search-box {
+            position: relative;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 15px 20px;
+            font-size: 1.1em;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .search-btn:active {
+            transform: translateY(0);
+        }
+
+        .search-stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9em;
+        }
+
+        .filter-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .results-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .result-item {
+            border-bottom: 1px solid #f0f0f0;
+            padding: 20px;
+            transition: background 0.2s ease;
+        }
+
+        .result-item:hover {
+            background: #f8f9ff;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .config-name {
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #2c3e50;
+            background: #f8f9fa;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .config-type {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .type-config { background: #e3f2fd; color: #1976d2; }
+        .type-menuconfig { background: #f3e5f5; color: #7b1fa2; }
+        .type-choice { background: #e8f5e8; color: #388e3c; }
+        .type-menu { background: #fff3e0; color: #f57c00; }
+        .type-source { background: #fce4ec; color: #c2185b; }
+
+        .config-prompt {
+            font-size: 1.1em;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .config-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .detail-item {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .detail-label {
+            font-weight: bold;
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+
+        .detail-value {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #2c3e50;
+        }
+
+        .config-help {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #28a745;
+            margin-top: 15px;
+        }
+
+        .config-help h4 {
+            color: #28a745;
+            margin-bottom: 8px;
+        }
+
+        .config-help pre {
+            white-space: pre-wrap;
+            font-family: inherit;
+            line-height: 1.4;
+            color: #555;
+        }
+
+        .location-info {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 10px;
+        }
+
+        .external-search {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #17a2b8;
+        }
+
+        .external-search h4 {
+            color: #17a2b8;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+
+        .search-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .external-btn {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 6px;
+            text-decoration: none;
+            color: #333;
+            font-size: 0.8em;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .external-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .external-btn.google {
+            border-color: #4285f4;
+            color: #4285f4;
+        }
+
+        .external-btn.google:hover {
+            background: #4285f4;
+            color: white;
+        }
+
+        .external-btn.stackoverflow {
+            border-color: #f48024;
+            color: #f48024;
+        }
+
+        .external-btn.stackoverflow:hover {
+            background: #f48024;
+            color: white;
+        }
+
+        .external-btn.chatgpt {
+            border-color: #10a37f;
+            color: #10a37f;
+        }
+
+        .external-btn.chatgpt:hover {
+            background: #10a37f;
+            color: white;
+        }
+
+        .external-btn.claude {
+            border-color: #cc785c;
+            color: #cc785c;
+        }
+
+        .external-btn.claude:hover {
+            background: #cc785c;
+            color: white;
+        }
+
+        .external-btn.github {
+            border-color: #333;
+            color: #333;
+        }
+
+        .external-btn.github:hover {
+            background: #333;
+            color: white;
+        }
+
+        .external-btn.buildroot {
+            border-color: #28a745;
+            color: #28a745;
+        }
+
+        .external-btn.buildroot:hover {
+            background: #28a745;
+            color: white;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .no-results h3 {
+            margin-bottom: 10px;
+            color: #999;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #667eea;
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #667eea;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .highlight {
+            background: #ffeb3b;
+            padding: 1px 2px;
+            border-radius: 2px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .search-container {
+                padding: 20px;
+            }
+            
+            .config-details {
+                grid-template-columns: 1fr;
+            }
+            
+            .search-stats {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
+            
+            .filter-buttons {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 Buildroot Config Search</h1>
+            <p>Search through Buildroot configuration options</p>
+        </div>
+
+        <div class="search-container">
+            <div class="search-box">
+                <input type="text" 
+                       class="search-input" 
+                       id="searchInput" 
+                       placeholder="Search config options... (e.g., 'toolchain', 'BR2_PACKAGE_BUSYBOX', 'openssl')"
+                       autocomplete="off">
+                <button class="search-btn" id="searchBtn">
+                    🔍 Search
+                </button>
+            </div>
+            
+            <div class="search-stats">
+                <div id="searchStats">Loading configuration data...</div>
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-type="all">All</button>
+                    <button class="filter-btn" data-type="config">Config</button>
+                    <button class="filter-btn" data-type="menuconfig">Menu Config</button>
+                    <button class="filter-btn" data-type="choice">Choice</button>
+                    <button class="filter-btn" data-type="menu">Menu</button>
+                    <button class="filter-btn" data-type="source">Source</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="results-container">
+            <div id="results">
+                <div class="loading">Loading configuration data...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class BuildrootSearch {
+            constructor() {
+                this.data = [];
+                this.filteredData = [];
+                this.currentFilter = 'all';
+                this.searchTerm = '';
+                
+                this.initElements();
+                this.initEventListeners();
+                this.loadData();
+            }
+
+            initElements() {
+                this.searchInput = document.getElementById('searchInput');
+                this.resultsContainer = document.getElementById('results');
+                this.searchStats = document.getElementById('searchStats');
+                this.filterButtons = document.querySelectorAll('.filter-btn');
+            }
+
+            initEventListeners() {
+                // Search button click
+                document.getElementById('searchBtn').addEventListener('click', () => {
+                    this.performSearch();
+                });
+
+                // Enter key in search input
+                this.searchInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.performSearch();
+                    }
+                });
+
+                // Filter buttons
+                this.filterButtons.forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        this.filterButtons.forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+                        this.currentFilter = e.target.dataset.type;
+                        this.performSearch();
+                    });
+                });
+            }
+
+            async loadData() {
+                try {
+                    const response = await fetch('data.json');
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    this.data = await response.json();
+                    this.filteredData = this.data;
+                    this.updateStats();
+                    this.renderResults();
+                } catch (error) {
+                    console.error('Error loading data:', error);
+                    this.resultsContainer.innerHTML = `
+                        <div class="no-results">
+                            <h3>Error Loading Data</h3>
+                            <p>Could not load data.json. Please ensure the file exists and is properly formatted.</p>
+                            <p>Error: ${error.message}</p>
+                        </div>
+                    `;
+                }
+            }
+
+            performSearch() {
+                this.searchTerm = this.searchInput.value.toLowerCase();
+                
+                this.filteredData = this.data.filter(item => {
+                    // Filter by type
+                    if (this.currentFilter !== 'all' && item.type !== this.currentFilter) {
+                        return false;
+                    }
+
+                    // Filter by search term
+                    if (this.searchTerm) {
+                        const searchFields = [
+                            item.name,
+                            item.prompt,
+                            item.help,
+                            item.data_type,
+                            item.depends_on?.join(' '),
+                            item.selects?.map(s => typeof s === 'string' ? s : s.value).join(' '),
+                            item.location?.file
+                        ].filter(Boolean).join(' ').toLowerCase();
+
+                        return searchFields.includes(this.searchTerm);
+                    }
+
+                    return true;
+                });
+
+                this.updateStats();
+                this.renderResults();
+            }
+
+            updateStats() {
+                const total = this.data.length;
+                const filtered = this.filteredData.length;
+                const searchText = this.searchTerm ? ` for "${this.searchTerm}"` : '';
+                const filterText = this.currentFilter !== 'all' ? ` (${this.currentFilter} only)` : '';
+                
+                this.searchStats.textContent = `Showing ${filtered} of ${total} options${searchText}${filterText}`;
+            }
+
+            renderResults() {
+                if (this.filteredData.length === 0) {
+                    this.resultsContainer.innerHTML = `
+                        <div class="no-results">
+                            <h3>No results found</h3>
+                            <p>Try adjusting your search terms or filters.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const html = this.filteredData.map(item => this.renderItem(item)).join('');
+                this.resultsContainer.innerHTML = html;
+            }
+
+            renderItem(item) {
+                const highlight = (text) => {
+                    if (!this.searchTerm || !text) return text;
+                    const regex = new RegExp(`(${this.searchTerm})`, 'gi');
+                    return text.replace(regex, '<span class="highlight">$1</span>');
+                };
+
+                const details = [];
+                
+                if (item.data_type) {
+                    details.push({
+                        label: 'Type',
+                        value: item.data_type
+                    });
+                }
+
+                if (item.defaults && item.defaults.length > 0) {
+                    details.push({
+                        label: 'Default',
+                        value: item.defaults.map(d => d.condition ? `${d.value} (if ${d.condition})` : d.value).join(', ')
+                    });
+                }
+
+                if (item.depends_on && item.depends_on.length > 0) {
+                    details.push({
+                        label: 'Depends on',
+                        value: item.depends_on.join(', ')
+                    });
+                }
+
+                if (item.selects && item.selects.length > 0) {
+                    details.push({
+                        label: 'Selects',
+                        value: item.selects.map(s => typeof s === 'string' ? s : s.value).join(', ')
+                    });
+                }
+
+                if (item.range && (item.range.min || item.range.max)) {
+                    details.push({
+                        label: 'Range',
+                        value: `${item.range.min || '?'} - ${item.range.max || '?'}`
+                    });
+                }
+
+                // Generate search queries
+                const searchQueries = this.generateSearchQueries(item);
+
+                return `
+                    <div class="result-item">
+                        <div class="result-header">
+                            <div class="config-name">${highlight(item.name)}</div>
+                            <div class="config-type type-${item.type}">${item.type}</div>
+                        </div>
+                        
+                        ${item.prompt ? `<div class="config-prompt">${highlight(item.prompt)}</div>` : ''}
+                        
+                        ${details.length > 0 ? `
+                            <div class="config-details">
+                                ${details.map(detail => `
+                                    <div class="detail-item">
+                                        <div class="detail-label">${detail.label}</div>
+                                        <div class="detail-value">${highlight(detail.value)}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                        
+                        ${item.help ? `
+                            <div class="config-help">
+                                <h4>Help</h4>
+                                <pre>${highlight(item.help)}</pre>
+                            </div>
+                        ` : ''}
+                        
+                        <div class="external-search">
+                            <h4>🔍 Learn More</h4>
+                            <div class="search-buttons">
+                                <a href="${searchQueries.google}" target="_blank" class="external-btn google">
+                                    🔍 Google
+                                </a>
+                                <a href="${searchQueries.stackoverflow}" target="_blank" class="external-btn stackoverflow">
+                                    📚 Stack Overflow
+                                </a>
+                                <a href="${searchQueries.chatgpt}" target="_blank" class="external-btn chatgpt">
+                                    🤖 ChatGPT
+                                </a>
+                                <a href="${searchQueries.claude}" target="_blank" class="external-btn claude">
+                                    🤖 Claude
+                                </a>
+                                <a href="${searchQueries.github}" target="_blank" class="external-btn github">
+                                    💻 GitHub
+                                </a>
+                            </div>
+                        </div>
+                        
+                        ${item.location ? `
+                            <div class="location-info">
+                                📁 ${item.location.file}${item.location.line ? `:${item.location.line}` : ''}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            generateSearchQueries(item) {
+                // Create smart search queries based on the config item
+                const configName = item.name || '';
+                const prompt = item.prompt || '';
+                const packageName = this.extractPackageName(configName);
+                
+                // Base search terms
+                const baseTerms = [configName, prompt, packageName].filter(Boolean);
+                const buildRootTerms = ['buildroot', ...baseTerms].filter(Boolean);
+                
+                return {
+                    google: `https://www.google.com/search?q=${encodeURIComponent(buildRootTerms.join(' '))}`,
+                    
+                    stackoverflow: `https://stackoverflow.com/search?q=${encodeURIComponent(buildRootTerms.join(' '))}`,
+                    
+                    chatgpt: `https://chat.openai.com/?q=${encodeURIComponent(`Explain buildroot configuration option ${configName}: ${prompt}. When to use it?`)}`,
+                    
+                    claude: `https://claude.ai/new?q=${encodeURIComponent(`Explain buildroot configuration option ${configName}: ${prompt}. When to use it?`)}`,
+                    
+                    github: `https://github.com/search?q=${encodeURIComponent(`${configName} buildroot`)}&type=code`
+                };
+            }
+
+            extractPackageName(configName) {
+                // Extract package name from config name
+                if (!configName) return '';
+                
+                // Remove BR2_ prefix
+                let name = configName.replace(/^BR2_/, '');
+                
+                // Extract package name patterns
+                const patterns = [
+                    /^PACKAGE_(.+?)(?:_|$)/,  // BR2_PACKAGE_SOMETHING
+                    /^TOOLCHAIN_(.+?)(?:_|$)/, // BR2_TOOLCHAIN_SOMETHING
+                    /^TARGET_(.+?)(?:_|$)/,   // BR2_TARGET_SOMETHING
+                    /^SYSTEM_(.+?)(?:_|$)/,   // BR2_SYSTEM_SOMETHING
+                ];
+                
+                for (const pattern of patterns) {
+                    const match = name.match(pattern);
+                    if (match) {
+                        return match[1].toLowerCase().replace(/_/g, ' ');
+                    }
+                }
+                
+                // If no pattern matches, return the first part
+                return name.split('_')[0].toLowerCase();
+            }
+        }
+
+        // Initialize the search interface when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new BuildrootSearch();
+        });
+    </script>
+</body>
+</html>
